@@ -1,0 +1,2480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patrick's Debt Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+:root {
+  --bg: #0f0f13;
+  --surface: #18181f;
+  --surface2: #22222c;
+  --surface3: #2a2a36;
+  --border: #32323f;
+  --accent: #f5a623;
+  --accent2: #e8472e;
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --red: #ef4444;
+  --orange: #f97316;
+  --text: #f0f0f5;
+  --text2: #9898aa;
+  --text3: #5c5c72;
+  --overdue-bg: rgba(239,68,68,0.08);
+  --overdue-border: rgba(239,68,68,0.3);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+/* Subtle grid bg */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image: linear-gradient(rgba(245,166,35,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,166,35,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none; z-index:0;
+}
+.container { max-width:1280px; margin:0 auto; position:relative; z-index:1; }
+
+/* HEADER */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:32px; flex-wrap:wrap; gap:16px;
+}
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:44px; height:44px;
+  background: linear-gradient(135deg, var(--accent), #e8472e);
+  border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.4em;
+}
+.logo h1 {
+  font-family:'Syne', sans-serif;
+  font-size:1.5em; font-weight:800;
+  color:var(--text);
+  letter-spacing:-0.5px;
+}
+.logo span { color:var(--accent); }
+.header-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+/* BUTTONS */
+.btn {
+  padding:10px 18px; border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif; font-size:0.9em; font-weight:600;
+  cursor:pointer; border:none; transition:all 0.2s ease;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.btn-primary { background: var(--accent); color:#000; }
+.btn-primary:hover { background:#ffb83f; transform:translateY(-1px); }
+.btn-ghost { background: var(--surface2); color:var(--text); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--surface3); border-color:var(--text3); }
+.btn-danger { background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.2); }
+.btn-danger:hover { background:rgba(239,68,68,0.25); }
+.btn-success { background:rgba(34,197,94,0.15); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+.btn-success:hover { background:rgba(34,197,94,0.25); }
+.btn-blue { background:rgba(59,130,246,0.15); color:var(--blue); border:1px solid rgba(59,130,246,0.2); }
+.btn-blue:hover { background:rgba(59,130,246,0.25); }
+.btn-sm { padding:6px 12px; font-size:0.8em; }
+.btn-icon { padding:10px; width:40px; height:40px; justify-content:center; }
+
+/* SELECTED ROW */
+.selected-row { background:rgba(245,166,35,0.1) !important; }
+
+/* STATS */
+.stats-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+  gap:14px; margin-bottom:24px;
+}
+.stat-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  position:relative; overflow:hidden;
+  animation: fadeUp 0.4s ease both;
+}
+.stat-card::after {
+  content:''; position:absolute;
+  bottom:0; left:0; right:0; height:2px;
+}
+.stat-card.s1::after { background: var(--accent); }
+.stat-card.s2::after { background: var(--red); }
+.stat-card.s3::after { background: var(--green); }
+.stat-card.s4::after { background: var(--blue); }
+.stat-card.s5::after { background: var(--orange); }
+.stat-label {
+  font-size:0.78em; font-weight:600;
+  color:var(--text3); text-transform:uppercase; letter-spacing:1px;
+  margin-bottom:10px;
+}
+.stat-value {
+  font-family:'Syne',sans-serif;
+  font-size:1.9em; font-weight:700; color:var(--text);
+  line-height:1;
+}
+.stat-card.s2 .stat-value { color: var(--red); }
+.stat-card.s3 .stat-value { color: var(--green); }
+
+/* LAYOUT */
+.layout { display:grid; grid-template-columns:380px 1fr; gap:20px; align-items:start; }
+@media(max-width:960px){ .layout { grid-template-columns:1fr; } }
+
+/* PANEL (form card) */
+.panel {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  animation: fadeUp 0.5s ease both;
+}
+.panel-header {
+  padding:18px 22px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+}
+.panel-header h2 {
+  font-family:'Syne',sans-serif; font-size:1em; font-weight:700;
+  color:var(--text);
+}
+.panel-dot {
+  width:8px; height:8px; border-radius:50%;
+  background: var(--accent);
+}
+.panel-body { padding:22px; }
+
+/* FORM */
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-group { margin-bottom:16px; }
+.form-group:last-child { margin-bottom:0; }
+label {
+  display:block; margin-bottom:6px;
+  font-size:0.82em; font-weight:600;
+  color:var(--text2); text-transform:uppercase; letter-spacing:0.5px;
+}
+.input-wrap { position:relative; }
+input, select, textarea {
+  width:100%; padding:11px 14px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.95em;
+  transition:all 0.2s ease;
+}
+input:focus, select:focus, textarea:focus {
+  outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(245,166,35,0.12);
+}
+input.error { border-color:var(--red); box-shadow:0 0 0 3px rgba(239,68,68,0.1); }
+.error-msg { color:var(--red); font-size:0.78em; margin-top:5px; display:none; }
+.error-msg.show { display:block; }
+select option { background: var(--surface2); }
+.payment-row { display:flex; gap:10px; }
+.payment-row input { flex:1; }
+
+/* PARTIAL PAYMENT BREAKDOWN */
+.payment-history { margin-top:12px; }
+.ph-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 12px; background:var(--surface2);
+  border-radius:var(--radius-sm); margin-bottom:6px;
+  font-size:0.85em;
+}
+.ph-amount { font-weight:700; color:var(--green); }
+.ph-date { color:var(--text3); }
+
+/* TABLE SECTION */
+.table-panel {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  animation: fadeUp 0.5s ease 0.1s both;
+}
+.table-toolbar {
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+}
+.search-wrap { position:relative; flex:1; min-width:200px; }
+.search-wrap input { padding-left:38px; }
+.search-icon {
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  color:var(--text3); font-size:0.95em; pointer-events:none;
+}
+.filter-pills { display:flex; gap:8px; flex-wrap:wrap; }
+.pill {
+  padding:6px 14px; border-radius:30px; font-size:0.8em; font-weight:600;
+  cursor:pointer; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text2);
+  transition:all 0.2s;
+}
+.pill.active { background:var(--accent); color:#000; border-color:var(--accent); }
+.pill.overdue-pill.active { background:var(--red); color:#fff; border-color:var(--red); }
+
+/* TABLE */
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+thead tr { border-bottom:1px solid var(--border); }
+th {
+  padding:12px 16px; text-align:left;
+  font-size:0.75em; font-weight:700;
+  color:var(--text3); text-transform:uppercase; letter-spacing:0.8px;
+  white-space:nowrap;
+}
+td { padding:14px 16px; border-bottom:1px solid var(--border); font-size:0.9em; vertical-align:middle; }
+tbody tr { transition:background 0.15s; }
+tbody tr:hover { background:var(--surface2); }
+tbody tr:last-child td { border-bottom:none; }
+
+/* OVERDUE ROW */
+tbody tr.row-overdue { background:var(--overdue-bg); }
+tbody tr.row-overdue:hover { background:rgba(239,68,68,0.12); }
+tbody tr.row-overdue td:first-child { border-left:3px solid var(--red); }
+
+/* STATUS BADGES */
+.badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:20px;
+  font-size:0.78em; font-weight:700; white-space:nowrap;
+}
+.badge-pending { background:rgba(249,115,22,0.15); color:var(--orange); }
+.badge-partial { background:rgba(59,130,246,0.15); color:var(--blue); }
+.badge-paid { background:rgba(34,197,94,0.15); color:var(--green); }
+.badge-overdue { background:rgba(239,68,68,0.15); color:var(--red); }
+.badge::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+/* PROGRESS BAR for partial */
+.progress-wrap { width:90px; }
+.progress-bar {
+  height:5px; background:var(--surface3);
+  border-radius:3px; overflow:hidden; margin-top:4px;
+}
+.progress-fill {
+  height:100%; border-radius:3px;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  transition:width 0.3s ease;
+}
+.progress-label { font-size:0.75em; color:var(--text2); }
+
+/* CUSTOMER ID */
+.cid { font-family:monospace; font-size:0.85em; color:var(--text2); }
+
+/* EMPTY STATE */
+.empty-state {
+  padding:60px 20px; text-align:center; color:var(--text3);
+}
+.empty-icon { font-size:3em; margin-bottom:12px; }
+.empty-state p { font-size:0.95em; }
+
+/* MODAL */
+.modal-overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+  z-index:1000; display:none;
+  align-items:center; justify-content:center;
+  padding:20px;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+  animation: modalIn 0.25s ease;
+  position: relative;
+  z-index: 1001;
+}
+.modal-header {
+  padding:20px 24px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.modal-header h3 { font-family:'Syne',sans-serif; font-size:1.1em; font-weight:700; }
+.modal-close {
+  background:var(--surface2); border:1px solid var(--border);
+  color:var(--text); border-radius:6px; width:32px; height:32px;
+  cursor:pointer; font-size:1em; display:flex; align-items:center; justify-content:center;
+}
+.modal-close:hover { background:var(--surface3); }
+.modal-body { padding:24px; }
+.modal-footer {
+  padding:16px 24px;
+  border-top:1px solid var(--border);
+  display:flex; gap:10px; justify-content:flex-end;
+  position: relative;
+  z-index: 1001;
+}
+
+/* APP CONTENT VISIBILITY */
+.container {
+  opacity: 0.2;
+  pointer-events: none;
+}
+body.authenticated .container {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* TOAST */
+.toast-container {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  display:flex; flex-direction:column; gap:10px;
+}
+.toast {
+  padding:12px 18px; border-radius:10px;
+  background:var(--surface3); border:1px solid var(--border);
+  color:var(--text); font-size:0.9em; font-weight:500;
+  display:flex; align-items:center; gap:10px;
+  animation: toastIn 0.3s ease;
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  max-width:320px;
+}
+.toast.success { border-color:rgba(34,197,94,0.3); }
+.toast.error { border-color:rgba(239,68,68,0.3); }
+.toast.info { border-color:rgba(59,130,246,0.3); }
+.toast.warning { border-color:rgba(245,166,35,0.3); background:rgba(245,166,35,0.1); }
+
+/* IMPORT SECTION */
+.import-zone {
+  border:2px dashed var(--border);
+  border-radius:var(--radius);
+  padding:30px; text-align:center;
+  cursor:pointer; transition:all 0.2s;
+  color:var(--text3);
+}
+.import-zone:hover { border-color:var(--accent); color:var(--text2); }
+.import-zone.drag-over { border-color:var(--accent); background:rgba(245,166,35,0.05); }
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes modalIn {
+  from { opacity:0; transform:scale(0.95) translateY(10px); }
+  to { opacity:1; transform:scale(1) translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity:0; transform:translateX(20px); }
+  to { opacity:1; transform:translateX(0); }
+}
+
+/* BACKUP BAR */
+.backup-bar {
+  background:rgba(59,130,246,0.08);
+  border:1px solid rgba(59,130,246,0.2);
+  border-radius:var(--radius-sm);
+  padding:10px 16px; margin-bottom:20px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px;
+  font-size:0.85em; color:var(--blue);
+}
+.backup-bar span { display:flex; align-items:center; gap:6px; }
+
+/* OVERDUE ALERT */
+.overdue-alert {
+  background: rgba(239,68,68,0.08);
+  border:1px solid rgba(239,68,68,0.25);
+  border-radius:var(--radius-sm);
+  padding:10px 16px; margin-bottom:20px;
+  font-size:0.85em; color:var(--red);
+  display:none; align-items:center; gap:8px;
+}
+.overdue-alert.show { display:flex; }
+
+/* PAYMENT MODAL SPECIFICS */
+.debt-summary {
+  background:var(--surface2); border-radius:var(--radius-sm);
+  padding:14px; margin-bottom:20px;
+}
+.debt-summary-row { display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.9em; }
+.debt-summary-row:last-child { margin-bottom:0; font-weight:700; }
+.amt-remaining { color:var(--orange); font-family:'Syne',sans-serif; font-size:1.1em; }
+
+hr { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+/* SEARCH HIGHLIGHTING */
+mark { background:rgba(245,166,35,0.3); border-radius:3px; padding:0 2px; }
+
+/* SELECTED ROW */
+.selected-row { background:rgba(245,166,35,0.1) !important; }
+
+/* STICKY TABLE HEADER */
+thead { position:sticky; top:0; background:var(--surface); z-index:10; }
+
+/* COLUMN SORTING CURSOR */
+th { cursor:pointer; user-select:none; }
+
+/* SEARCH HIGHLIGHTING */
+mark { background:rgba(245,166,35,0.3); border-radius:3px; padding:0 2px; }
+
+/* SELECTED ROW */
+.selected-row { background:rgba(245,166,35,0.1) !important; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🏪</div>
+      <div>
+        <h1>Patrick's <span>Debt</span> Manager</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="openAnalyticsDashboard()">📊 Analytics</button>
+      <button class="btn btn-ghost" onclick="exportPDF()">📄 PDF Export</button>
+      <button class="btn btn-ghost" onclick="openAuditLog()">📋 Audit Log</button>
+      <button class="btn btn-ghost" onclick="clearAllData()">🗑️ Clear All</button>
+      <button class="btn btn-ghost" onclick="checkDuplicateIds()">🔍 Check Duplicates</button>
+      <button class="btn btn-ghost" onclick="openImportModal()">📂 Import CSV</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">📥 Export CSV</button>
+      <button class="btn btn-ghost" onclick="backupData()">💾 Backup JSON</button>
+      <button class="btn btn-ghost" onclick="openRestoreModal()">🔄 Restore</button>
+    </div>
+  </header>
+
+  <!-- OVERDUE ALERT -->
+  <div class="overdue-alert" id="overdueAlert">
+    ⚠️ <strong id="overdueCount">0</strong>&nbsp;overdue debt(s) need your attention — highlighted in red below.
+  </div>
+
+  <!-- BACKUP INFO BAR -->
+  <div class="backup-bar" id="backupBar" style="display:none">
+    <span>💾 Last backup: <strong id="lastBackupTime">Never</strong></span>
+    <span style="color:var(--text3); font-size:0.8em;">Data stored locally in your browser. Export JSON regularly for safety.</span>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card s1"><div class="stat-label">Total Debts</div><div class="stat-value" id="statTotal">0</div></div>
+    <div class="stat-card s2"><div class="stat-label">Total Owed</div><div class="stat-value" id="statAmount">KES 0</div></div>
+    <div class="stat-card s3"><div class="stat-label">Collected</div><div class="stat-value" id="statCollected">KES 0</div></div>
+    <div class="stat-card s4"><div class="stat-label">Pending</div><div class="stat-value" id="statPending">0</div></div>
+    <div class="stat-card s5"><div class="stat-label">Overdue</div><div class="stat-value" id="statOverdue">0</div></div>
+  </div>
+
+  <div class="layout">
+
+    <!-- ADD DEBT FORM -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-dot"></div>
+        <h2 id="formTitle">Add New Debt</h2>
+      </div>
+      <div class="panel-body">
+        <input type="hidden" id="editingId">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Customer Name *</label>
+            <input type="text" id="customerName" placeholder="John Mwangi" aria-label="Customer name" aria-required="true">
+            <div class="error-msg" id="err-name">Name is required</div>
+          </div>
+          <div class="form-group">
+            <label>National ID *</label>
+            <input type="text" id="customerID" placeholder="123456789" maxlength="9" aria-label="Customer ID" aria-required="true">
+            <div class="error-msg" id="err-id">Must be 1–9 digits (numbers only)</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Phone Number *</label>
+          <input type="tel" id="phoneNumber" placeholder="0712345678" maxlength="12" aria-label="Phone number" aria-required="true">
+          <div class="error-msg" id="err-phone">Valid phone number required</div>
+        </div>
+
+        <div class="form-group">
+          <label>Product / Description *</label>
+          <input type="text" id="product" placeholder="e.g., 2kg Rice, Flour 5kg">
+          <div class="error-msg" id="err-product">Product is required</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Total Amount (KES) *</label>
+            <input type="number" id="price" placeholder="5000" min="1">
+            <div class="error-msg" id="err-price">Enter a valid amount</div>
+          </div>
+          <div class="form-group">
+            <label>Initial Payment (KES)</label>
+            <input type="number" id="initialPayment" placeholder="0" min="0">
+            <div class="error-msg" id="err-initial">Cannot exceed total</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date Taken *</label>
+            <input type="date" id="dateTaken" aria-label="Date taken" aria-required="true">
+            <div class="error-msg" id="err-dateTaken">Required</div>
+          </div>
+          <div class="form-group">
+            <label>Due Date *</label>
+            <input type="date" id="dueDate" aria-label="Due date" aria-required="true">
+            <div class="error-msg" id="err-dueDate">Must be after date taken</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button class="btn btn-primary" style="flex:1" onclick="submitForm()" aria-label="Add or update debt">
+            <span id="submitIcon">＋</span> <span id="submitText">Add Debt</span>
+          </button>
+          <button class="btn btn-ghost" id="cancelEditBtn" style="display:none" onclick="cancelEdit()" aria-label="Cancel editing">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE PANEL -->
+    <div class="table-panel">
+      <div class="table-toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by name, ID, phone, product..." aria-label="Search debts by any field">
+        </div>
+        <div class="filter-pills">
+          <button class="pill active" data-filter="all" onclick="setFilter('all',this)" aria-label="Show all debts">All</button>
+          <button class="pill" data-filter="pending" onclick="setFilter('pending',this)" aria-label="Show pending debts">Pending</button>
+          <button class="pill" data-filter="partial" onclick="setFilter('partial',this)" aria-label="Show partially paid debts">Partial</button>
+          <button class="pill" data-filter="paid" onclick="setFilter('paid',this)" aria-label="Show fully paid debts">Paid</button>
+          <button class="pill overdue-pill" data-filter="overdue" onclick="setFilter('overdue',this)" aria-label="Show overdue debts">Overdue</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <div id="tableContainer">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>No debts yet. Add one to get started.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /layout -->
+</div><!-- /container -->
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="loginModal" style="display:flex;">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>🔐 Enter Password</h3>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2); font-size:0.9em; margin-bottom:20px;" id="loginHelp">
+        This app is password protected. Please enter a password to continue. On first visit, enter a new password to set it up.
+      </p>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="passwordInput" placeholder="Enter password" aria-label="Password" style="width:100%">
+        <div class="error-msg" id="err-password"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="width:100%" onclick="verifyPassword()" aria-label="Unlock app">🔓 Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💳 Record Payment</h3>
+      <button class="modal-close" onclick="closeModal('paymentModal')" aria-label="Close payment modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="debt-summary" id="paymentSummary"></div>
+
+      <div class="form-group">
+        <label>Payment Amount (KES) *</label>
+        <input type="number" id="paymentAmount" placeholder="Enter amount" min="1">
+        <div class="error-msg" id="err-payment">Enter a valid amount within remaining balance</div>
+      </div>
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input type="date" id="paymentDate">
+      </div>
+      <div class="form-group">
+        <label>Note (optional)</label>
+        <input type="text" id="paymentNote" placeholder="e.g., Cash payment">
+      </div>
+
+      <div id="paymentHistorySection"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('paymentModal')">Cancel</button>
+      <button class="btn btn-success" onclick="recordPayment()">✓ Record Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📂 Import CSV</h3>
+      <button class="modal-close" onclick="closeModal('importModal')" aria-label="Close import modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2); font-size:0.9em; margin-bottom:16px;">
+        Import debts from a CSV file. Expected columns: Customer Name, National ID, Phone Number, Product, Total Amount, Initial Payment, Date Taken, Due Date
+      </p>
+      <div class="import-zone" id="importZone">
+        <div style="font-size:2em; margin-bottom:10px;">📂</div>
+        <p>Click to select CSV file or drag & drop here</p>
+        <input type="file" id="csvFile" accept=".csv" style="display:none;">
+      </div>
+      <div style="margin-top:16px;">
+        <label style="display:block; margin-bottom:8px; font-weight:600;">Or paste tab-separated data below:</label>
+        <textarea id="csvText" rows="6" placeholder="Paste tab-separated rows here (no header row needed)..." style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text);"></textarea>
+        <button class="btn btn-blue" type="button" onclick="handleCSVText()" style="margin-top:10px;">Parse Pasted Data</button>
+      </div>
+      <div id="importPreview" style="display:none; margin-top:16px;">
+        <h4 style="margin-bottom:8px;">Preview (first 5 rows):</h4>
+        <div id="previewTable"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-success" id="importBtn" onclick="importCSV()" disabled>📂 Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESTORE MODAL -->
+<div class="modal-overlay" id="restoreModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔄 Restore from Backup</h3>
+      <button class="modal-close" onclick="closeModal('restoreModal')" aria-label="Close restore modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2); font-size:0.9em; margin-bottom:16px;">
+        Restore debts from a JSON backup file. This will replace all current data.
+      </p>
+      <div class="import-zone" id="restoreZone">
+        <div style="font-size:2em; margin-bottom:10px;">💾</div>
+        <p>Click to select JSON file or drag & drop here</p>
+        <input type="file" id="jsonFile" accept=".json" style="display:none;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('restoreModal')">Cancel</button>
+      <button class="btn btn-success" id="restoreBtn" onclick="restoreData()" disabled>🔄 Restore</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS DASHBOARD MODAL -->
+<div class="modal-overlay" id="analyticsModal">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3>📊 Analytics Dashboard</h3>
+      <button class="modal-close" onclick="closeModal('analyticsModal')"  aria-label="Close analytics modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div>
+          <label style="display:block;margin-bottom:10px;font-weight:bold;">Status Breakdown</label>
+          <canvas id="statusChart" width="300" height="200"></canvas>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:10px;font-weight:bold;">Collection Trend</label>
+          <canvas id="collectionChart" width="300" height="200"></canvas>
+        </div>
+      </div>
+      
+      <hr>
+      <h4 style="margin-bottom:10px;">Advanced Filters</h4>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date Range From</label>
+          <input type="date" id="filterFromDate">
+        </div>
+        <div class="form-group">
+          <label>Date Range To</label>
+          <input type="date" id="filterToDate">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Min Amount</label>
+          <input type="number" id="filterMinAmount" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Max Amount</label>
+          <input type="number" id="filterMaxAmount" placeholder="999999">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status Filter</label>
+        <select id="filterStatus">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="applyAdvancedFilters()">Apply Filters</button>
+      <button class="btn btn-ghost" onclick="resetAdvancedFilters()" style="margin-left:5px;">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT LOG MODAL -->
+<div class="modal-overlay" id="auditModal">
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-header">
+      <h3>📋 Audit Trail</h3>
+      <button class="modal-close" onclick="closeModal('auditModal')"  aria-label="Close audit log modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="auditLogContent" style="max-height:500px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="exportAuditLog()">📥 Export Log</button>
+      <button class="btn btn-ghost" onclick="closeModal('auditModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ============ CONSTANTS ============
+const CONFIG = {
+  TOAST_DURATION: 4000,
+  MAX_ID_DIGITS: 9,
+  DEBOUNCE_DELAY: 300,
+  GRID_SIZE: 40,
+  MODAL_ANIMATION: 250,
+  DUPLICATE_CHECK_DELAY: 1000,
+  MAX_UNDO_HISTORY: 5,
+  LATE_PAYMENT_INTEREST_RATE: 0.05,
+  ENABLE_ENCRYPTION: true,
+  ENCRYPTION_KEY: null // Set dynamically on first login
+};
+
+// ============ SECURITY HELPERS ============
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(text).replace(/[&<>"']/g, char => map[char]);
+}
+
+// Authentication state
+let isAuthenticated = false;
+
+// Sorting state
+let sortColumn = null;
+let sortDirection = 'asc'; // 'asc' or 'desc'
+
+// Undo history
+let deletedDebtsHistory = [];
+
+// Bulk delete
+let selectedDebtIds = new Set();
+
+// Audit trail
+let auditTrail = JSON.parse(localStorage.getItem('auditTrail')) || [];
+
+// Analytics state
+let analyticsChart = null;
+
+// ============ DATA STORAGE (ENCRYPTED) ============
+let debts = [];
+let currentFilter = 'all';
+let searchTerm = '';
+let searchDebounceTimer = null;
+
+// DOM ELEMENTS
+const elements = {
+  tableContainer: document.getElementById('tableContainer'),
+  searchInput: document.getElementById('searchInput'),
+  overdueAlert: document.getElementById('overdueAlert'),
+  overdueCount: document.getElementById('overdueCount'),
+  backupBar: document.getElementById('backupBar'),
+  lastBackupTime: document.getElementById('lastBackupTime'),
+  statTotal: document.getElementById('statTotal'),
+  statAmount: document.getElementById('statAmount'),
+  statCollected: document.getElementById('statCollected'),
+  statPending: document.getElementById('statPending'),
+  statOverdue: document.getElementById('statOverdue'),
+  formTitle: document.getElementById('formTitle'),
+  editingId: document.getElementById('editingId'),
+  customerName: document.getElementById('customerName'),
+  customerID: document.getElementById('customerID'),
+  phoneNumber: document.getElementById('phoneNumber'),
+  product: document.getElementById('product'),
+  price: document.getElementById('price'),
+  initialPayment: document.getElementById('initialPayment'),
+  dateTaken: document.getElementById('dateTaken'),
+  dueDate: document.getElementById('dueDate'),
+  submitIcon: document.getElementById('submitIcon'),
+  submitText: document.getElementById('submitText'),
+  cancelEditBtn: document.getElementById('cancelEditBtn'),
+  paymentModal: document.getElementById('paymentModal'),
+  paymentSummary: document.getElementById('paymentSummary'),
+  paymentAmount: document.getElementById('paymentAmount'),
+  paymentDate: document.getElementById('paymentDate'),
+  paymentNote: document.getElementById('paymentNote'),
+  paymentHistorySection: document.getElementById('paymentHistorySection'),
+  importModal: document.getElementById('importModal'),
+  importZone: document.getElementById('importZone'),
+  csvFile: document.getElementById('csvFile'),
+  importBtn: document.getElementById('importBtn'),
+  importPreview: document.getElementById('importPreview'),
+  previewTable: document.getElementById('previewTable'),
+  restoreModal: document.getElementById('restoreModal'),
+  restoreZone: document.getElementById('restoreZone'),
+  jsonFile: document.getElementById('jsonFile'),
+  restoreBtn: document.getElementById('restoreBtn'),
+  toastContainer: document.getElementById('toastContainer')
+};
+
+// ============ ENCRYPTION ============
+function setEncryptionKey(password) {
+  CONFIG.ENCRYPTION_KEY = password || 'DEFAULT_KEY';
+}
+
+function encryptData(data) {
+  if (!CONFIG.ENABLE_ENCRYPTION || !CONFIG.ENCRYPTION_KEY) return JSON.stringify(data);
+  try {
+    return CryptoJS.AES.encrypt(JSON.stringify(data), CONFIG.ENCRYPTION_KEY).toString();
+  } catch (err) {
+    console.error('Encryption error:', err);
+    return JSON.stringify(data);
+  }
+}
+
+function decryptData(encryptedData) {
+  if (!CONFIG.ENABLE_ENCRYPTION || !CONFIG.ENCRYPTION_KEY) return JSON.parse(encryptedData);
+  try {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, CONFIG.ENCRYPTION_KEY);
+    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+  } catch (err) {
+    console.error('Decryption error:', err);
+    return null;
+  }
+}
+
+// ============ LOAD/SAVE DATA ============
+function loadData() {
+  try {
+    const stored = localStorage.getItem('debts');
+    if (!stored) return [];
+    if (CONFIG.ENABLE_ENCRYPTION) {
+      return decryptData(stored) || [];
+    } else {
+      return JSON.parse(stored) || [];
+    }
+  } catch (err) {
+    console.error('Load data error:', err);
+    return [];
+  }
+}
+
+function saveData() {
+  try {
+    const encrypted = encryptData(debts);
+    localStorage.setItem('debts', encrypted);
+    localStorage.setItem('lastBackup', new Date().toISOString());
+    updateBackupBar();
+  } catch (err) {
+    console.error('Save data error:', err);
+    showToast('Error saving data', 'error');
+  }
+}
+
+// ============ AUDIT TRAIL ============
+function logAudit(action, details, debtId = null) {
+  try {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      action: action, // 'CREATE', 'UPDATE', 'DELETE', 'PAYMENT', 'RESTORE'
+      debtId: debtId,
+      details: details,
+      user: 'System' // Can be expanded for multi-user
+    };
+    auditTrail.unshift(entry);
+    if (auditTrail.length > 1000) auditTrail = auditTrail.slice(0, 1000);
+    localStorage.setItem('auditTrail', JSON.stringify(auditTrail));
+  } catch (err) {
+    console.error('Audit logging error:', err);
+  }
+}
+
+function getAuditTrail() {
+  return auditTrail;
+}
+
+// ============ LATE PAYMENT INTEREST ============
+function calculateLatePaymentInterest(debt) {
+  const today = new Date();
+  const today00 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dueDate = new Date(debt.dueDate);
+  
+  if (dueDate >= today00) return 0; // Not overdue
+  
+  const daysOverdue = Math.floor((today00 - dueDate) / (1000 * 60 * 60 * 24));
+  const remaining = getDebtRemaining(debt);
+  const monthsOverdue = Math.ceil(daysOverdue / 30);
+  
+  // Simple interest: Principal × Rate × Time
+  const interest = remaining * CONFIG.LATE_PAYMENT_INTEREST_RATE * (monthsOverdue / 12);
+  return Math.round(interest);
+}
+
+function getTotalWithInterest(debt) {
+  return getDebtRemaining(debt) + calculateLatePaymentInterest(debt);
+}
+
+// Highlight search term in text (XSS-safe)
+function highlightSearchTerm(text, term) {
+  if (!term) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const pattern = escapeHtml(term);
+  const regex = new RegExp(`(${pattern})`, 'gi');
+  return escaped.replace(regex, '<mark style="background:rgba(245,166,35,0.3)">$1</mark>');
+}
+
+// Sort debts by column
+function sortDebts(debtsToSort, column, direction) {
+  const sorted = [...debtsToSort];
+  sorted.sort((a, b) => {
+    let aVal, bVal;
+    
+    switch(column) {
+      case 'name': aVal = a.customerName.toLowerCase(); bVal = b.customerName.toLowerCase(); break;
+      case 'id': aVal = a.customerID; bVal = b.customerID; break;
+      case 'amount': aVal = a.totalAmount; bVal = b.totalAmount; break;
+      case 'paid': aVal = getDebtPaid(a); bVal = getDebtPaid(b); break;
+      case 'remaining': aVal = getDebtRemaining(a); bVal = getDebtRemaining(b); break;
+      case 'due': aVal = new Date(a.dueDate); bVal = new Date(b.dueDate); break;
+      default: return 0;
+    }
+    
+    if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return sorted;
+}
+
+// Calculate total paid on a debt
+function getDebtPaid(debt) {
+  return debt.payments.reduce((sum, payment) => sum + payment.amount, 0);
+}
+
+// Calculate remaining balance for a debt
+function getDebtRemaining(debt) {
+  return debt.totalAmount - getDebtPaid(debt);
+}
+
+// Normalize and validate phone number (more flexible)
+function normalizePhone(phone) {
+  const cleaned = phone.replace(/\D/g, '');
+  if (/^(0|254)?(7|1)\d{8}$/.test(cleaned)) {
+    return cleaned.startsWith('0') ? '254' + cleaned.substring(1) : cleaned.startsWith('254') ? cleaned : '254' + cleaned;
+  }
+  return null;
+}
+
+function formatCurrency(amount) {
+  return 'KES ' + amount.toLocaleString();
+}
+
+function isDebtOverdue(debt, remaining) {
+  const today = new Date().setHours(0,0,0,0);
+  const due = new Date(debt.dueDate).setHours(0,0,0,0);
+  return due < today && remaining > 0;
+}
+
+function sendWhatsAppReminder(id) {
+  try {
+    const debt = debts.find(d => d.id === id);
+    if (!debt) return;
+
+    const remaining = getDebtRemaining(debt);
+
+    if (remaining <= 0) {
+      showToast('This debt is already fully paid.', 'info');
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(debt.phoneNumber || '');
+    if (!normalizedPhone) {
+      showToast('Invalid customer phone number for WhatsApp.', 'error');
+      return;
+    }
+
+    const message = `Hello ${debt.customerName}, you have a remaining balance of ${formatCurrency(remaining)} for ${debt.product}. Kindly clear before ${formatDate(debt.dueDate)}. Thank you.`;
+
+    const url = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+
+    window.open(url, '_blank');
+  } catch (err) {
+    console.error('WhatsApp reminder error:', err);
+    showToast('Error sending reminder', 'error');
+  }
+}
+
+function sendCustomerStatement(customerID) {
+  try {
+    const customerDebts = debts.filter(d => d.customerID === customerID);
+
+    if (customerDebts.length === 0) {
+      showToast('No debts found for this customer', 'error');
+      return;
+    }
+
+    const customerName = customerDebts[0].customerName;
+    let totalRemaining = 0;
+
+    let message = `*DEBT STATEMENT*\n`;
+    message += `Customer: ${customerName}\n`;
+    message += `ID: ${customerID}\n\n`;
+    message += `*DEBTS:*\n`;
+
+    customerDebts.forEach((d, i) => {
+      const paid = getDebtPaid(d);
+      const remaining = getDebtRemaining(d);
+      totalRemaining += remaining;
+
+      message += `${i + 1}. ${d.product}\n`;
+      message += `   Total: ${formatCurrency(d.totalAmount)}\n`;
+      message += `   Paid: ${formatCurrency(paid)}\n`;
+      message += `   Remaining: ${formatCurrency(remaining)}\n`;
+      message += `   Due: ${formatDate(d.dueDate)}\n\n`;
+    });
+
+    message += `*TOTAL OWED: ${formatCurrency(totalRemaining)}*\n`;
+    message += `Please clear your balance. Thank you.`;
+
+    const normalizedPhone = normalizePhone(customerDebts[0].phoneNumber || '');
+    if (!normalizedPhone) {
+      showToast('Invalid customer phone number for WhatsApp.', 'error');
+      return;
+    }
+
+    const url = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+
+    window.open(url, '_blank');
+  } catch (err) {
+    console.error('Customer statement error:', err);
+    showToast('Error generating statement', 'error');
+  }
+}
+
+function checkDuplicateIds() {
+  try {
+    const idGroups = {};
+    
+    // Group debts by customer ID
+    debts.forEach(debt => {
+      if (!idGroups[debt.customerID]) {
+        idGroups[debt.customerID] = [];
+      }
+      idGroups[debt.customerID].push(debt);
+    });
+    
+    // Find IDs with multiple debts
+    const duplicates = Object.entries(idGroups).filter(([id, debts]) => debts.length > 1);
+    
+    if (duplicates.length > 0) {
+      const duplicateMessages = duplicates.map(([id, customerDebts]) => {
+        const totalOwed = customerDebts.reduce((sum, debt) => {
+          return sum + getDebtRemaining(debt);
+        }, 0);
+        const customerName = customerDebts[0].customerName;
+        return `ID No. ${id} (${customerName}) has ${customerDebts.length} debts with total remaining: ${formatCurrency(totalOwed)}`;
+      });
+      
+      showToast(`Duplicate IDs found: ${duplicateMessages.join(' | ')}`, 'warning');
+    } else {
+      showToast('No duplicate IDs found', 'info');
+    }
+  } catch (err) {
+    console.error('Duplicate check error:', err);
+    showToast('Error checking duplicates', 'error');
+  }
+}
+
+// Clear all data function for testing
+function clearAllData() {
+  if (confirm('Are you sure you want to delete ALL debts? This action cannot be undone.')) {
+    console.log('Clearing all data...');
+    debts = [];
+    localStorage.removeItem('debts');
+    localStorage.removeItem('lastBackup');
+    elements.backupBar.style.display = 'none';
+    renderTable();
+    updateStats();
+    showToast('All data cleared successfully', 'success');
+    console.log('Data cleared, localStorage debts:', JSON.parse(localStorage.getItem('debts') || '[]'));
+  }
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString();
+}
+
+// Get customer summary tooltip
+function getCustomerSummary(customerId) {
+  const customerDebts = debts.filter(d => d.customerID === customerId);
+  if (customerDebts.length === 0) return '';
+  
+  const totalOwed = customerDebts.reduce((sum, d) => sum + getDebtRemaining(d), 0);
+  const totalPaid = customerDebts.reduce((sum, d) => sum + getDebtPaid(d), 0);
+  const debtCount = customerDebts.length;
+  
+  return `${debtCount} debt(s) | Total: ${formatCurrency(totalOwed + totalPaid)} | Owed: ${formatCurrency(totalOwed)}`;
+}
+
+function showToast(message, type = 'info', action = null, onActionClick = null) {
+  try {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    let html = `<span>${message}</span>`;
+    if (action && onActionClick) {
+      html += `<button onclick="event.stopPropagation()" style="background:none;border:none;color:inherit;cursor:pointer;text-decoration:underline;font-weight:bold;">${action}</button>`;
+    }
+    toast.innerHTML = html;
+    elements.toastContainer.appendChild(toast);
+    
+    if (action && onActionClick) {
+      toast.querySelector('button').addEventListener('click', onActionClick);
+    }
+    
+    setTimeout(() => toast.remove(), CONFIG.TOAST_DURATION);
+  } catch (err) {
+    console.error('Toast error:', err);
+  }
+}
+
+// ============ PASSWORD AUTHENTICATION ============
+function getStoredPassword() {
+  return localStorage.getItem('appPassword') || null;
+}
+
+function verifyPassword() {
+  try {
+    const passwordInput = document.getElementById('passwordInput');
+    const enteredPassword = passwordInput.value;
+    const errorMsg = document.getElementById('err-password');
+    const storedPassword = getStoredPassword();
+    
+    // First time setup or verify
+    if (!storedPassword) {
+      if (enteredPassword.length < 4) {
+        errorMsg.textContent = 'Password must be at least 4 characters';
+        errorMsg.style.display = 'block';
+        return;
+      }
+      localStorage.setItem('appPassword', btoa(enteredPassword));
+      setEncryptionKey(enteredPassword);
+      debts = loadData();
+      isAuthenticated = true;
+      document.body.classList.add('authenticated');
+      const loginModal = document.getElementById('loginModal');
+      loginModal.style.display = 'none';
+      updateBackupBar();
+      renderTable();
+      showToast('✓ Password set and authenticated!', 'success');
+      passwordInput.value = '';
+    } else {
+      // Verify against stored password
+      if (enteredPassword === atob(storedPassword)) {
+        setEncryptionKey(enteredPassword);
+        debts = loadData();
+        isAuthenticated = true;
+        document.body.classList.add('authenticated');
+        const loginModal = document.getElementById('loginModal');
+        loginModal.style.display = 'none';
+        updateBackupBar();
+        renderTable();
+        showToast('✓ Authenticated successfully!', 'success');
+        passwordInput.value = '';
+      } else {
+        errorMsg.textContent = 'Incorrect password';
+        errorMsg.style.display = 'block';
+        passwordInput.value = '';
+        setTimeout(() => {
+          errorMsg.style.display = 'none';
+        }, 3000);
+      }
+    }
+  } catch (err) {
+    console.error('Password verification error:', err);
+    showToast('Error verifying password', 'error');
+  }
+}
+
+// Handle Enter key on password input
+function setupPasswordListener() {
+  const passwordInput = document.getElementById('passwordInput');
+  if (passwordInput) {
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') verifyPassword();
+    });
+  }
+}
+
+function updateBackupBar() {
+  const lastBackup = localStorage.getItem('lastBackup');
+  if (lastBackup) {
+    elements.lastBackupTime.textContent = new Date(lastBackup).toLocaleString();
+    elements.backupBar.style.display = 'flex';
+  }
+}
+
+// ============ CALCULATE STATS ============
+function updateStats() {
+  const total = debts.length;
+  let totalOwed = 0;
+  let collected = 0;
+  let pending = 0;
+  let overdue = 0;
+  let oldestOverdueDate = null;
+  let collectionRate = 0;
+
+  const today = new Date().setHours(0,0,0,0);
+
+  debts.forEach(d => {
+    const paid = getDebtPaid(d);
+    const remaining = getDebtRemaining(d);
+    
+    totalOwed += remaining;
+    collected += paid;
+
+    const due = new Date(d.dueDate).setHours(0,0,0,0);
+    if (remaining > 0 && due < today) {
+      overdue++;
+      if (!oldestOverdueDate || due < oldestOverdueDate) {
+        oldestOverdueDate = due;
+      }
+    }
+    if (remaining > 0) pending++;
+  });
+
+  // Calculate collection rate
+  if (collected + totalOwed > 0) {
+    collectionRate = Math.round((collected / (collected + totalOwed)) * 100);
+  }
+
+  elements.statTotal.textContent = total;
+  elements.statAmount.textContent = formatCurrency(totalOwed);
+  elements.statCollected.textContent = formatCurrency(collected);
+  elements.statPending.textContent = pending;
+  elements.statOverdue.textContent = overdue;
+
+  // Add expanded info to tooltips
+  elements.statTotal.title = `Average per debt: ${total > 0 ? formatCurrency(Math.round((collected + totalOwed) / total)) : 'N/A'}`;
+  elements.statCollected.title = `Collection rate: ${collectionRate}%`;
+  elements.statOverdue.title = oldestOverdueDate ? `Oldest: ${formatDate(new Date(oldestOverdueDate))}` : 'None';
+
+  elements.overdueCount.textContent = overdue;
+  elements.overdueAlert.classList.toggle('show', overdue > 0);
+}
+
+// ============ RENDER TABLE ============
+function renderTable() {
+  try {
+    let filtered = debts;
+
+    if (currentFilter !== 'all') {
+      filtered = debts.filter(d => {
+        const paid = getDebtPaid(d);
+        const remaining = getDebtRemaining(d);
+        const isOverdue = isDebtOverdue(d, remaining);
+        const status = isOverdue ? 'overdue' : remaining === 0 ? 'paid' : paid > 0 ? 'partial' : 'pending';
+        return status === currentFilter;
+      });
+    }
+
+    // Expanded search: name, ID, phone, and product
+    if (searchTerm) {
+      filtered = filtered.filter(d =>
+        d.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.customerID.includes(searchTerm) ||
+        d.phoneNumber.includes(searchTerm) ||
+        d.product.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply sorting
+    if (sortColumn) {
+      filtered = sortDebts(filtered, sortColumn, sortDirection);
+    }
+
+    if (filtered.length === 0) {
+      elements.tableContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No debts found matching your criteria.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const tableHTML = `
+    <table style="position:relative;">
+      <thead style="position:sticky;top:0;background:var(--surface);z-index:10;">
+        <tr>
+          <th style="cursor:pointer;" onclick="toggleSort('name')" title="Click to sort" role="columnheader" aria-sort="none">Customer ${sortColumn === 'name' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th style="cursor:pointer;" onclick="toggleSort('id')" title="Click to sort" role="columnheader" aria-sort="none">ID ${sortColumn === 'id' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th role="columnheader">Phone</th>
+          <th role="columnheader">Product</th>
+          <th style="cursor:pointer;" onclick="toggleSort('amount')" title="Click to sort" role="columnheader" aria-sort="none">Amount ${sortColumn === 'amount' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th style="cursor:pointer;" onclick="toggleSort('paid')" title="Click to sort" role="columnheader" aria-sort="none">Paid ${sortColumn === 'paid' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th style="cursor:pointer;" onclick="toggleSort('remaining')" title="Click to sort" role="columnheader" aria-sort="none">Remaining ${sortColumn === 'remaining' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th role="columnheader">Interest</th>
+          <th style="cursor:pointer;" onclick="toggleSort('due')" title="Click to sort" role="columnheader" aria-sort="none">Due Date ${sortColumn === 'due' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}</th>
+          <th role="columnheader">Status</th>
+          <th style="width:30px;" role="columnheader"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" title="Select all debts" aria-label="Select all debts"></th>
+          <th role="columnheader">Actions</th>
+        </tr>
+      </thead>
+      <tbody role="rowgroup">
+        ${filtered.map(debt => {
+          const paid = getDebtPaid(debt);
+          const remaining = getDebtRemaining(debt);
+          const isOverdue = isDebtOverdue(debt, remaining);
+          const interest = calculateLatePaymentInterest(debt);
+          const status = isOverdue ? 'overdue' : remaining === 0 ? 'paid' : paid > 0 ? 'partial' : 'pending';
+          const isSelected = selectedDebtIds.has(debt.id);
+
+          return `
+            <tr class="${isOverdue ? 'row-overdue' : ''} ${isSelected ? 'selected-row' : ''}" style="${isSelected ? 'background:rgba(245,166,35,0.1);' : ''}">
+              <td title="${escapeHtml(getCustomerSummary(debt.customerID))}">${highlightSearchTerm(debt.customerName, searchTerm)}</td>
+              <td><span class="cid">${highlightSearchTerm(debt.customerID, searchTerm)}</span></td>
+              <td>${highlightSearchTerm(debt.phoneNumber || '', searchTerm)}</td>
+              <td>${highlightSearchTerm(debt.product, searchTerm)}</td>
+              <td>${formatCurrency(debt.totalAmount)}</td>
+              <td>${formatCurrency(paid)}</td>
+              <td>${formatCurrency(remaining)}</td>
+              <td>${interest > 0 ? formatCurrency(interest) : 'None'}</td>
+              <td>${formatDate(debt.dueDate)}</td>
+              <td>
+                <span class="badge badge-${status}">
+                  ${status.charAt(0).toUpperCase() + status.slice(1)}
+                  ${status === 'partial' ? `<div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${(paid/debt.totalAmount)*100}%"></div></div><div class="progress-label">${Math.round((paid/debt.totalAmount)*100)}%</div></div>` : ''}
+                </span>
+              </td>
+              <td><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleDebtSelection(${debt.id})" title="Select this debt"></td>
+              <td>
+                <button class="btn btn-sm btn-success" onclick="sendWhatsAppReminder(${debt.id})" title="Send WhatsApp reminder">📲</button>
+                <button class="btn btn-sm btn-primary" onclick="sendCustomerStatement('${debt.customerID}')" title="Send customer statement">📄</button>
+                <button class="btn btn-sm btn-blue" onclick="openPaymentModal(${debt.id})" title="Record payment">💳 Pay</button>
+                <button class="btn btn-sm btn-ghost" onclick="editDebt(${debt.id})" title="Edit debt">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteDebt(${debt.id})" title="Delete debt">🗑️</button>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+    // Add bulk delete button if items selected
+    let bulkDeleteBtn = '';
+    if (selectedDebtIds.size > 0) {
+      bulkDeleteBtn = `<button class="btn btn-danger" onclick="bulkDeleteSelected()" style="margin-left:auto;">🗑️ Delete ${selectedDebtIds.size} selected</button>`;
+    }
+    
+    const containerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;${selectedDebtIds.size > 0 ? '' : 'display:none;'}"> 
+        ${bulkDeleteBtn}
+      </div>
+      ${tableHTML}
+    `;
+    
+    elements.tableContainer.innerHTML = containerHTML;
+    updateStats();
+  } catch (err) {
+    console.error('Table render error:', err);
+    showToast('Error rendering table', 'error');
+  }
+}
+
+// Toggle sorting for a column
+function toggleSort(column) {
+  if (sortColumn === column) {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColumn = column;
+    sortDirection = 'asc';
+  }
+  renderTable();
+}
+
+// Toggle debt selection for bulk delete
+function toggleDebtSelection(debtId) {
+  if (selectedDebtIds.has(debtId)) {
+    selectedDebtIds.delete(debtId);
+  } else {
+    selectedDebtIds.add(debtId);
+  }
+  renderTable();
+}
+
+// Toggle select all
+function toggleSelectAll() {
+  const checkbox = document.getElementById('selectAllCheckbox');
+  if (checkbox.checked) {
+    // Get current filtered debts
+    let filtered = debts;
+    if (currentFilter !== 'all') {
+      filtered = debts.filter(d => {
+        const remaining = getDebtRemaining(d);
+        const isOverdue = isDebtOverdue(d, remaining);
+        const status = isOverdue ? 'overdue' : remaining === 0 ? 'paid' : getDebtPaid(d) > 0 ? 'partial' : 'pending';
+        return status === currentFilter;
+      });
+    }
+    if (searchTerm) {
+      filtered = filtered.filter(d =>
+        d.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.customerID.includes(searchTerm) ||
+        d.phoneNumber.includes(searchTerm) ||
+        d.product.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    filtered.forEach(d => selectedDebtIds.add(d.id));
+  } else {
+    selectedDebtIds.clear();
+  }
+  renderTable();
+}
+
+// Bulk delete selected debts
+function bulkDeleteSelected() {
+  const count = selectedDebtIds.size;
+  if (!confirm(`Delete ${count} debt(s)? This action cannot be undone.`)) return;
+  
+  try {
+    const deletedDebts = [];
+    selectedDebtIds.forEach(id => {
+      const debt = debts.find(d => d.id === id);
+      if (debt) {
+        deletedDebts.push(debt);
+        logAudit('DELETE', `Deleted debt for ${debt.customerName}`, id);
+      }
+    });
+    
+    debts = debts.filter(d => !selectedDebtIds.has(d.id));
+    
+    // Add to undo history
+    deletedDebtsHistory.unshift(...deletedDebts);
+    if (deletedDebtsHistory.length > CONFIG.MAX_UNDO_HISTORY) {
+      deletedDebtsHistory = deletedDebtsHistory.slice(0, CONFIG.MAX_UNDO_HISTORY);
+    }
+    
+    selectedDebtIds.clear();
+    saveData();
+    renderTable();
+    showToast(`${count} debt(s) deleted`, 'success', 'UNDO', () => undoDelete());
+  } catch (err) {
+    console.error('Bulk delete error:', err);
+    showToast('Error deleting debts', 'error');
+  }
+}
+
+// Undo last deletion
+function undoDelete() {
+  try {
+    if (deletedDebtsHistory.length === 0) {
+      showToast('Nothing to undo', 'info');
+      return;
+    }
+    
+    const restoredDebts = deletedDebtsHistory.shift();
+    if (Array.isArray(restoredDebts)) {
+      debts.push(...restoredDebts);
+    } else {
+      debts.push(restoredDebts);
+    }
+    
+    saveData();
+    renderTable();
+    showToast('Debt(s) restored', 'success');
+  } catch (err) {
+    console.error('Undo error:', err);
+    showToast('Error restoring debt', 'error');
+  }
+}
+
+// ============ FORM FUNCTIONS ============
+function submitForm() {
+  try {
+    const name = elements.customerName.value.trim();
+    const id = elements.customerID.value.trim();
+    const phone = elements.phoneNumber.value.trim();
+    const product = elements.product.value.trim();
+    const price = parseFloat(elements.price.value);
+    const initial = parseFloat(elements.initialPayment.value) || 0;
+    const dateTaken = elements.dateTaken.value;
+    const dueDate = elements.dueDate.value;
+
+    // Validation
+    let valid = true;
+    document.querySelectorAll('.error-msg').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
+
+    if (!name) { document.getElementById('err-name').classList.add('show'); elements.customerName.classList.add('error'); valid = false; }
+    if (!id || !/^\d{1,9}$/.test(id)) { document.getElementById('err-id').classList.add('show'); elements.customerID.classList.add('error'); valid = false; }
+    
+    // Duplicate prevention: warn if customer ID already has debts
+    if (!elements.editingId.value && id && debts.some(d => d.customerID === id)) {
+      if (!confirm(`Customer ID ${id} already has ${debts.filter(d => d.customerID === id).length} debt(s). Continue adding?`)) {
+        return;
+      }
+    }
+    
+    // More flexible phone validation
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) { document.getElementById('err-phone').classList.add('show'); elements.phoneNumber.classList.add('error'); valid = false; }
+    
+    if (!product) { document.getElementById('err-product').classList.add('show'); elements.product.classList.add('error'); valid = false; }
+    if (!price || price <= 0) { document.getElementById('err-price').classList.add('show'); elements.price.classList.add('error'); valid = false; }
+    if (initial > price) { document.getElementById('err-initial').classList.add('show'); elements.initialPayment.classList.add('error'); valid = false; }
+    if (!dateTaken) { document.getElementById('err-dateTaken').classList.add('show'); elements.dateTaken.classList.add('error'); valid = false; }
+    if (!dueDate || new Date(dueDate) <= new Date(dateTaken)) { document.getElementById('err-dueDate').classList.add('show'); elements.dueDate.classList.add('error'); valid = false; }
+
+    if (!valid) return;
+
+    const existing = debts.find(d => d.id == elements.editingId.value);
+    const isNewDebt = !elements.editingId.value;
+
+    const debt = {
+      id: elements.editingId.value ? parseInt(elements.editingId.value) : Date.now(),
+      customerName: name,
+      customerID: id,
+      phoneNumber: phone,
+      product: product,
+      totalAmount: price,
+      payments: existing ? existing.payments : (initial > 0 ? [{ amount: initial, date: dateTaken, note: 'Initial payment' }] : []),
+      dateTaken: dateTaken,
+      dueDate: dueDate,
+      createdAt: existing ? existing.createdAt : new Date().toISOString()
+    };
+
+    if (elements.editingId.value) {
+      const index = debts.findIndex(d => d.id == elements.editingId.value);
+      debts[index] = debt;
+      logAudit('UPDATE', `Updated debt for ${name}`, debt.id);
+      showToast('Debt updated successfully!', 'success');
+    } else {
+      debts.push(debt);
+      logAudit('CREATE', `Created debt for ${name} - ${formatCurrency(price)}`, debt.id);
+      showToast('Debt added successfully!', 'success');
+    }
+
+    saveData();
+    resetForm();
+    renderTable();
+  } catch (err) {
+    console.error('Form submission error:', err);
+    showToast('Error submitting form', 'error');
+  }
+}
+
+function resetForm() {
+  elements.editingId.value = '';
+  elements.customerName.value = '';
+  elements.customerID.value = '';
+  elements.phoneNumber.value = '';
+  elements.product.value = '';
+  elements.price.value = '';
+  elements.initialPayment.value = '';
+  elements.dateTaken.value = '';
+  elements.dueDate.value = '';
+  elements.formTitle.textContent = 'Add New Debt';
+  elements.submitIcon.textContent = '＋';
+  elements.submitText.textContent = 'Add Debt';
+  elements.cancelEditBtn.style.display = 'none';
+  document.querySelectorAll('.error-msg').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
+}
+
+function cancelEdit() {
+  resetForm();
+}
+
+function editDebt(id) {
+  try {
+    const debt = debts.find(d => d.id === id);
+    if (!debt) return;
+
+    elements.editingId.value = debt.id;
+    elements.customerName.value = debt.customerName;
+    elements.customerID.value = debt.customerID;
+    elements.phoneNumber.value = debt.phoneNumber || '';
+    elements.product.value = debt.product;
+    elements.price.value = debt.totalAmount;
+    elements.initialPayment.value = getDebtPaid(debt);
+    elements.dateTaken.value = debt.dateTaken;
+    elements.dueDate.value = debt.dueDate;
+    elements.formTitle.textContent = 'Edit Debt';
+    elements.submitIcon.textContent = '✏️';
+    elements.submitText.textContent = 'Update Debt';
+    elements.cancelEditBtn.style.display = 'inline-block';
+  } catch (err) {
+    console.error('Edit debt error:', err);
+    showToast('Error editing debt', 'error');
+  }
+}
+
+function deleteDebt(id) {
+  try {
+    if (!confirm('Are you sure you want to delete this debt?')) return;
+    
+    const debt = debts.find(d => d.id === id);
+    debts = debts.filter(d => d.id !== id);
+    
+    // Add to undo history
+    if (debt) {
+      deletedDebtsHistory.unshift(debt);
+      if (deletedDebtsHistory.length > CONFIG.MAX_UNDO_HISTORY) {
+        deletedDebtsHistory = deletedDebtsHistory.slice(0, CONFIG.MAX_UNDO_HISTORY);
+      }
+    }
+    
+    saveData();
+    renderTable();
+    showToast('Debt deleted successfully!', 'success', 'UNDO', () => undoDelete());
+  } catch (err) {
+    console.error('Delete debt error:', err);
+    showToast('Error deleting debt', 'error');
+  }
+}
+
+// ============ PAYMENT FUNCTIONS ============
+function openPaymentModal(id) {
+  try {
+    const debt = debts.find(d => d.id === id);
+    if (!debt) return;
+
+    const paid = getDebtPaid(debt);
+    const remaining = getDebtRemaining(debt);
+
+    elements.paymentSummary.innerHTML = `
+      <div class="debt-summary-row"><strong>${debt.customerName}</strong> (${debt.customerID})</div>
+      <div class="debt-summary-row">Product: ${debt.product}</div>
+      <div class="debt-summary-row">Total: ${formatCurrency(debt.totalAmount)}</div>
+      <div class="debt-summary-row">Paid: ${formatCurrency(paid)}</div>
+      <div class="debt-summary-row amt-remaining">Remaining: ${formatCurrency(remaining)}</div>
+    `;
+
+    elements.paymentAmount.max = remaining;
+    elements.paymentAmount.value = '';
+    elements.paymentDate.value = new Date().toISOString().split('T')[0];
+    elements.paymentNote.value = '';
+
+    const paymentModal = document.getElementById('paymentModal');
+    paymentModal.dataset.debtId = String(debt.id);
+    console.log('Set debtId in modal:', debt.id);
+
+    renderPaymentHistory(debt);
+
+    paymentModal.classList.add('open');
+  } catch (err) {
+    console.error('Open payment modal error:', err);
+    showToast('Error opening payment modal', 'error');
+  }
+}
+
+function renderPaymentHistory(debt) {
+  if (debt.payments.length === 0) {
+    elements.paymentHistorySection.innerHTML = '';
+    return;
+  }
+
+  elements.paymentHistorySection.innerHTML = `
+    <hr>
+    <h4>Payment History</h4>
+    ${debt.payments.map(p => `
+      <div class="payment-history">
+        <div class="ph-item">
+          <div class="ph-amount">${formatCurrency(p.amount)}</div>
+          <div class="ph-date">${formatDate(p.date)} ${p.note ? `- ${p.note}` : ''}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function recordPayment() {
+  try {
+    console.log('Record Payment clicked');
+    const errMsg = document.getElementById('err-payment');
+    if (errMsg) errMsg.classList.remove('show');
+    
+    const amount = parseFloat(elements.paymentAmount.value);
+    const date = elements.paymentDate.value;
+    const note = elements.paymentNote.value.trim();
+
+    console.log('Amount:', amount, 'Date:', date);
+
+    if (!amount || amount <= 0) {
+      if (errMsg) {
+        errMsg.textContent = 'Enter a valid amount';
+        errMsg.classList.add('show');
+      }
+      return;
+    }
+
+    if (!date) {
+      if (errMsg) {
+        errMsg.textContent = 'Payment date is required';
+        errMsg.classList.add('show');
+      }
+      return;
+    }
+
+    const paymentModal = document.getElementById('paymentModal');
+    const debtId = parseInt(paymentModal.dataset.debtId);
+    console.log('Debt ID:', debtId, 'Dataset:', paymentModal.dataset.debtId);
+    const debt = debts.find(d => d.id === debtId);
+    if (!debt) {
+      console.error('Debt not found with ID:', debtId, 'Available IDs:', debts.map(d => d.id));
+      showToast('Debt not found', 'error');
+      return;
+    }
+
+    const remaining = getDebtRemaining(debt);
+    if (amount > remaining) {
+      if (errMsg) {
+        errMsg.textContent = `Amount cannot exceed remaining balance: ${formatCurrency(remaining)}`;
+        errMsg.classList.add('show');
+      }
+      return;
+    }
+
+    debt.payments.push({ amount, date, note });
+    logAudit('PAYMENT', `Payment of ${formatCurrency(amount)} recorded`, debtId);
+    saveData();
+    renderTable();
+    closeModal('paymentModal');
+    showToast('Payment recorded successfully!', 'success');
+  } catch (err) {
+    console.error('Record payment error:', err);
+    showToast('Error recording payment: ' + err.message, 'error');
+  }
+}
+
+// MODAL FUNCTIONS
+function openModal(modalId) {
+  document.getElementById(modalId).classList.add('open');
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('open');
+}
+
+// ============ FILTER AND SEARCH ============
+function setFilter(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  selectedDebtIds.clear();
+  renderTable();
+}
+
+// Debounced search to improve performance
+function debouncedSearch(term) {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    searchTerm = term.toLowerCase();
+    selectedDebtIds.clear();
+    renderTable();
+  }, CONFIG.DEBOUNCE_DELAY);
+}
+
+elements.searchInput.addEventListener('input', (e) => {
+  debouncedSearch(e.target.value);
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  // Escape to close modal
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(modal => {
+      modal.classList.remove('open');
+    });
+  }
+});
+
+// Enter key for form submission
+elements.price.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') submitForm();
+});
+elements.dueDate.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') submitForm();
+});
+
+// Enter for payment modal
+elements.paymentAmount.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') recordPayment();
+});
+
+// ============ IMPORT/EXPORT ============
+function openImportModal() {
+  openModal('importModal');
+}
+
+function handleCSVText() {
+  try {
+    const text = document.getElementById('csvText').value;
+    if (!text.trim()) {
+      showToast('Paste some tab-separated rows before parsing.', 'warning');
+      return;
+    }
+    parseImportData(text);
+  } catch (err) {
+    console.error('CSV text handling error:', err);
+    showToast('Error parsing pasted data', 'error');
+  }
+}
+
+function handleCSVFile(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csv = e.target.result;
+        // Improved CSV parsing with delimiter detection and quote handling
+        const rows = parseCSV(csv);
+        
+        if (rows.length === 0) {
+          showToast('CSV file is empty or has no data rows', 'error');
+          return;
+        }
+
+        let headers = rows[0];
+        let data = rows.slice(1).filter(row => row.length > 1);
+        const expectedHeaders = ['Customer Name', 'National ID', 'Phone Number', 'Product', 'Total Amount', 'Initial Payment', 'Date Taken', 'Due Date'];
+        const normalizedHeaders = headers.map(h => h.toString().trim().toLowerCase());
+        const expectedNormalized = expectedHeaders.map(h => h.toLowerCase());
+        const headerMatch = expectedNormalized.every(h => normalizedHeaders.includes(h));
+
+        if (!headerMatch && rows[0].length === expectedHeaders.length) {
+          // If the file has no header row and appears to be data
+          const firstRowIsData = rows[0][0] && rows[0][0].toString().trim() !== '' && !expectedHeaders.includes(rows[0][0].toString().trim());
+          if (firstRowIsData) {
+            data = rows.slice(0).filter(row => row.length > 1);
+            headers = expectedHeaders;
+          }
+        }
+
+        if (data.length === 0) {
+          showToast('CSV file has no valid data rows', 'error');
+          return;
+        }
+
+        elements.importPreview.style.display = 'block';
+        elements.previewTable.innerHTML = `
+          <table>
+            <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+            <tbody>${data.slice(0, 5).map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell.toString().trim())}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+        `;
+
+        elements.importBtn.disabled = false;
+        elements.importBtn.dataset.csvData = JSON.stringify({ headers, data });
+        showToast(`Preview loaded: ${data.length} rows found`, 'info');
+      } catch (err) {
+        console.error('CSV parsing error:', err);
+        showToast('Error parsing CSV file', 'error');
+      }
+    };
+    reader.onerror = () => {
+      showToast('Error reading CSV file', 'error');
+    };
+    reader.readAsText(file);
+  } catch (err) {
+    console.error('CSV file handling error:', err);
+    showToast('Error handling CSV file', 'error');
+  }
+}
+
+// Robust CSV parser that handles quoted fields and detects commas or tabs as delimiters
+function parseCSV(csv) {
+  const delimiter = detectDelimiter(csv);
+  const rows = [];
+  let currentRow = [];
+  let currentField = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const nextChar = csv[i + 1];
+
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        currentField += '"';
+        i++;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+    } else if (char === delimiter && !insideQuotes) {
+      currentRow.push(currentField.trim());
+      currentField = '';
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      if (currentField || currentRow.length > 0) {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(f => f !== '')) rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      }
+      if (char === '\r' && nextChar === '\n') i++;
+    } else {
+      currentField += char;
+    }
+  }
+
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    if (currentRow.some(f => f !== '')) rows.push(currentRow);
+  }
+
+  return rows;
+}
+
+function detectDelimiter(csv) {
+  const firstLine = csv.split(/\r?\n/)[0] || '';
+  const counts = {
+    ',': (firstLine.match(/,/g) || []).length,
+    '\t': (firstLine.match(/\t/g) || []).length,
+    ';': (firstLine.match(/;/g) || []).length,
+    '|': (firstLine.match(/\|/g) || []).length
+  };
+  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] > 0 ? best[0] : '\t';
+}
+
+function parseImportData(csv) {
+  const rows = parseCSV(csv);
+  if (rows.length === 0) {
+    showToast('Import text is empty or malformed.', 'error');
+    return;
+  }
+
+  let headers = rows[0];
+  let data = rows.slice(1).filter(row => row.length > 1);
+  const expectedHeaders = ['Customer Name', 'National ID', 'Phone Number', 'Product', 'Total Amount', 'Initial Payment', 'Date Taken', 'Due Date'];
+  const normalizedHeaders = headers.map(h => h.toString().trim().toLowerCase());
+  const expectedNormalized = expectedHeaders.map(h => h.toLowerCase());
+  const headerMatch = expectedNormalized.every(h => normalizedHeaders.includes(h));
+
+  if (!headerMatch && headers.length === expectedHeaders.length) {
+    const firstRowIsData = headers[0] && headers[0].toString().trim() !== '' && !expectedHeaders.includes(headers[0].toString().trim());
+    if (firstRowIsData) {
+      data = rows.filter(row => row.length > 1);
+      headers = expectedHeaders;
+    }
+  }
+
+  if (data.length === 0) {
+    showToast('Import text has no valid data rows', 'error');
+    return;
+  }
+
+  elements.importPreview.style.display = 'block';
+  elements.previewTable.innerHTML = `
+    <table>
+      <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${data.slice(0, 5).map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell.toString().trim())}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+  `;
+
+  elements.importBtn.disabled = false;
+  elements.importBtn.dataset.csvData = JSON.stringify({ headers, data });
+  showToast(`Preview loaded: ${data.length} rows found`, 'info');
+}
+
+function handleCSVFile(file) {
+  try {
+    const { headers, data } = JSON.parse(elements.importBtn.dataset.csvData);
+    const expectedHeaders = ['Customer Name', 'National ID', 'Phone Number', 'Product', 'Total Amount', 'Initial Payment', 'Date Taken', 'Due Date'];
+    const normalizedHeaders = headers.map(h => h.toString().trim().toLowerCase());
+    const expectedNormalized = expectedHeaders.map(h => h.toLowerCase());
+    const headerMatch = expectedNormalized.every(h => normalizedHeaders.includes(h));
+    let importHeaders = headers;
+    let importData = data;
+
+    if (!headerMatch) {
+      // If the file had no header row but the column count matches, assume headerless data.
+      if (headers.length === expectedHeaders.length && data.length > 0) {
+        importHeaders = expectedHeaders;
+        importData = [headers, ...data];
+      } else {
+        showToast('CSV headers do not match expected format.', 'error');
+        return;
+      }
+    }
+
+    let importedCount = 0;
+    let errorCount = 0;
+
+    importData.forEach((row, index) => {
+      try {
+        const getValue = (columnName) => {
+          const idx = importHeaders.findIndex(h => h.toString().trim().toLowerCase() === columnName.toLowerCase());
+          return idx >= 0 ? (row[idx] || '').toString().trim() : '';
+        };
+
+        const debt = {
+          id: Date.now() + Math.random(),
+          customerName: getValue('Customer Name'),
+          customerID: getValue('National ID'),
+          phoneNumber: getValue('Phone Number'),
+          product: getValue('Product'),
+          totalAmount: parseFloat(getValue('Total Amount')),
+          payments: [],
+          dateTaken: getValue('Date Taken'),
+          dueDate: getValue('Due Date')
+        };
+
+        if (!debt.customerName || !debt.customerID || !debt.product) {
+          throw new Error('Missing required fields');
+        }
+
+        const initial = parseFloat(getValue('Initial Payment')) || 0;
+        if (initial > 0) {
+          debt.payments.push({ amount: initial, date: debt.dateTaken, note: 'Initial payment' });
+        }
+
+        debts.push(debt);
+        importedCount++;
+      } catch (err) {
+        console.error(`Error importing row ${index}:`, err);
+        errorCount++;
+      }
+    });
+
+    saveData();
+    renderTable();
+    closeModal('importModal');
+    
+    if (errorCount > 0) {
+      showToast(`${importedCount} debts imported, ${errorCount} rows had errors`, 'warning');
+    } else {
+      showToast(`${importedCount} debts imported successfully!`, 'success');
+    }
+  } catch (err) {
+    console.error('Import error:', err);
+    showToast('Error importing CSV', 'error');
+  }
+}
+
+function exportCSV() {
+  try {
+    const headers = ['Customer Name', 'National ID', 'Phone Number', 'Product', 'Total Amount', 'Paid Amount', 'Date Taken', 'Due Date'];
+    const rows = debts.map(d => [
+      escapeHtml(d.customerName),
+      d.customerID,
+      d.phoneNumber || '',
+      escapeHtml(d.product),
+      d.totalAmount,
+      getDebtPaid(d),
+      d.dateTaken,
+      d.dueDate
+    ]);
+
+    // Properly quote CSV fields
+    const csvContent = [
+      headers.map(h => `"${h}"`).join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debts_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV exported successfully!', 'success');
+  } catch (err) {
+    console.error('Export error:', err);
+    showToast('Error exporting CSV', 'error');
+  }
+}
+
+// ============ BACKUP/RESTORE ============
+function backupData() {
+  try {
+    const data = JSON.stringify(debts, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debts_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup downloaded successfully!', 'success');
+  } catch (err) {
+    console.error('Backup error:', err);
+    showToast('Error creating backup', 'error');
+  }
+}
+
+function openRestoreModal() {
+  openModal('restoreModal');
+}
+
+function handleJSONFile(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data)) {
+          throw new Error('JSON must contain an array of debts');
+        }
+        elements.restoreBtn.disabled = false;
+        elements.restoreBtn.dataset.jsonData = JSON.stringify(data);
+        showToast(`Backup file loaded: ${data.length} debts found`, 'info');
+      } catch (err) {
+        console.error('JSON parse error:', err);
+        showToast('Invalid JSON file: ' + err.message, 'error');
+      }
+    };
+    reader.onerror = () => {
+      showToast('Error reading JSON file', 'error');
+    };
+    reader.readAsText(file);
+  } catch (err) {
+    console.error('JSON file handling error:', err);
+    showToast('Error handling JSON file', 'error');
+  }
+}
+
+function restoreData() {
+  try {
+    if (!confirm('This will replace all current data. Continue?')) return;
+    
+    const data = JSON.parse(elements.restoreBtn.dataset.jsonData);
+    debts = data;
+    saveData();
+    renderTable();
+    closeModal('restoreModal');
+    elements.restoreBtn.disabled = true;
+    elements.restoreBtn.dataset.jsonData = '';
+    showToast('Data restored successfully!', 'success');
+  } catch (err) {
+    console.error('Restore error:', err);
+    showToast('Error restoring data', 'error');
+  }
+}
+
+// ============ ANALYTICS & PDF EXPORT ============
+function openAnalyticsDashboard() {
+  try {
+    openModal('analyticsModal');
+    setTimeout(() => renderAnalyticsCharts(), 100);
+  } catch (err) {
+    console.error('Analytics dashboard error:', err);
+    showToast('Error opening analytics', 'error');
+  }
+}
+
+function renderAnalyticsCharts() {
+  const statusCounts = { pending: 0, partial: 0, paid: 0, overdue: 0 };
+  
+  debts.forEach(d => {
+    const remaining = getDebtRemaining(d);
+    const isOverdue = isDebtOverdue(d, remaining);
+    const status = isOverdue ? 'overdue' : remaining === 0 ? 'paid' : getDebtPaid(d) > 0 ? 'partial' : 'pending';
+    statusCounts[status]++;
+  });
+  
+  const statusCtx = document.getElementById('statusChart');
+  if (analyticsChart) analyticsChart.destroy();
+  
+  analyticsChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Pending', 'Partial', 'Paid', 'Overdue'],
+      datasets: [{
+        data: [statusCounts.pending, statusCounts.partial, statusCounts.paid, statusCounts.overdue],
+        backgroundColor: ['#f97316', '#3b82f6', '#22c55e', '#ef4444'],
+        borderColor: ['rgba(249,115,22,0.3)', 'rgba(59,130,246,0.3)', 'rgba(34,197,94,0.3)', 'rgba(239,68,68,0.3)'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: 'var(--text)', font: { family: 'DM Sans' } } }
+      }
+    }
+  });
+}
+
+function applyAdvancedFilters() {
+  try {
+    const fromDate = document.getElementById('filterFromDate').value;
+    const toDate = document.getElementById('filterToDate').value;
+    const minAmount = parseFloat(document.getElementById('filterMinAmount').value) || 0;
+    const maxAmount = parseFloat(document.getElementById('filterMaxAmount').value) || Infinity;
+    const statusFilter = document.getElementById('filterStatus').value;
+    
+    let filtered = loadData();
+    
+    if (fromDate) {
+      filtered = filtered.filter(d => new Date(d.dateTaken) >= new Date(fromDate));
+    }
+    if (toDate) {
+      filtered = filtered.filter(d => new Date(d.dateTaken) <= new Date(toDate));
+    }
+    filtered = filtered.filter(d => d.totalAmount >= minAmount && d.totalAmount <= maxAmount);
+    
+    if (statusFilter) {
+      filtered = filtered.filter(d => {
+        const remaining = getDebtRemaining(d);
+        const isOverdue = isDebtOverdue(d, remaining);
+        const status = isOverdue ? 'overdue' : remaining === 0 ? 'paid' : getDebtPaid(d) > 0 ? 'partial' : 'pending';
+        return status === statusFilter;
+      });
+    }
+    
+    debts = filtered;
+    renderTable();
+    closeModal('analyticsModal');
+    showToast(`Filtered to ${filtered.length} debt(s)`, 'info');
+  } catch (err) {
+    console.error('Filter error:', err);
+    showToast('Error applying filters', 'error');
+  }
+}
+
+function resetAdvancedFilters() {
+  debts = loadData();
+  renderTable();
+  showToast('Filters reset', 'info');
+}
+
+function exportPDF() {
+  try {
+    const doc = new jspdf.jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(20);
+    doc.text('Patrick\'s Debt Manager', pageWidth / 2, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(`Report Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text('Summary', 14, 38);
+    
+    let totalOwed = 0, totalCollected = 0, overdueCount = 0;
+    debts.forEach(d => {
+      const paid = getDebtPaid(d);
+      const remaining = getDebtRemaining(d);
+      totalOwed += remaining;
+      totalCollected += paid;
+      if (isDebtOverdue(d, remaining)) overdueCount++;
+    });
+    
+    doc.setFontSize(10);
+    doc.text(`Total Debts: ${debts.length}`, 14, 45);
+    doc.text(`Total Owed: KES ${totalOwed.toLocaleString()}`, 14, 51);
+    doc.text(`Total Collected: KES ${totalCollected.toLocaleString()}`, 14, 57);
+    doc.text(`Overdue: ${overdueCount}`, 14, 63);
+    
+    const tableData = debts.map(d => {
+      const paid = getDebtPaid(d);
+      const remaining = getDebtRemaining(d);
+      const status = isDebtOverdue(d, remaining) ? 'Overdue' : remaining === 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Pending';
+      return [
+        d.customerName,
+        d.customerID,
+        d.product,
+        `KES ${d.totalAmount}`,
+        `KES ${paid}`,
+        `KES ${remaining}`,
+        status
+      ];
+    });
+    
+    doc.autoTable({
+      head: [['Customer', 'ID', 'Product', 'Total', 'Paid', 'Remaining', 'Status']],
+      body: tableData,
+      startY: 70,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [245, 166, 35] },
+      alternateRowStyles: { fillColor: [240, 240, 240] }
+    });
+    
+    doc.save(`debt_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    showToast('PDF exported successfully!', 'success');
+  } catch (err) {
+    console.error('PDF export error:', err);
+    showToast('Error exporting PDF', 'error');
+  }
+}
+
+function openAuditLog() {
+  try {
+    openModal('auditModal');
+    const auditContent = document.getElementById('auditLogContent');
+    
+    if (auditTrail.length === 0) {
+      auditContent.innerHTML = '<p style="color:var(--text3);">No audit entries yet</p>';
+      return;
+    }
+    
+    auditContent.innerHTML = auditTrail.slice(0, 100).map(entry => `
+      <div style="padding:10px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <strong style="color:var(--accent);">${entry.action}</strong>
+          <span style="color:var(--text3);font-size:0.85em;">${new Date(entry.timestamp).toLocaleString()}</span>
+        </div>
+        <div style="color:var(--text2);font-size:0.9em;">${entry.details}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Audit log error:', err);
+    showToast('Error opening audit log', 'error');
+  }
+}
+
+function exportAuditLog() {
+  try {
+    const csv = 'Timestamp,Action,DebtID,Details\n' + auditTrail.map(e => 
+      `"${e.timestamp}","${e.action}","${e.debtId || 'N/A'}","${e.details}"`
+    ).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_trail_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Audit log exported!', 'success');
+  } catch (err) {
+    console.error('Audit export error:', err);
+    showToast('Error exporting audit log', 'error');
+  }
+}
+
+// Modal focus management for accessibility
+function openModalWithFocus(modalId) {
+  const modal = document.getElementById(modalId);
+  modal.classList.add('open');
+  
+  // Set focus to first interactive element
+  setTimeout(() => {
+    const firstInput = modal.querySelector('input, button, select, textarea');
+    if (firstInput) firstInput.focus();
+  }, 100);
+  
+  // Trap focus within modal
+  modal.dataset.focusTrap = 'true';
+}
+
+// Close modal with focus restoration
+function closeModalWithFocus(modalId) {
+  const modal = document.getElementById(modalId);
+  modal.classList.remove('open');
+  modal.dataset.focusTrap = 'false';
+  
+  // Restore focus to trigger button (if available)
+  if (modal.dataset.triggerButton) {
+    document.querySelector(modal.data-triggerButton)?.focus();
+  }
+}
+
+// ============ INITIALIZE ============
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    setupPasswordListener();
+    updateBackupBar();
+    renderTable();
+    setTimeout(() => checkDuplicateIds(), CONFIG.DUPLICATE_CHECK_DELAY);
+
+  // IMPORT EVENTS (RUN ONCE)
+  elements.importZone.addEventListener('click', () => elements.csvFile.click());
+
+  elements.importZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    elements.importZone.classList.add('drag-over');
+  });
+
+  elements.importZone.addEventListener('dragleave', () => {
+    elements.importZone.classList.remove('drag-over');
+  });
+
+  elements.importZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    elements.importZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleCSVFile(file);
+  });
+
+  elements.csvFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleCSVFile(file);
+  });
+
+  // RESTORE EVENTS (RUN ONCE)
+  elements.restoreZone.addEventListener('click', () => elements.jsonFile.click());
+
+  elements.restoreZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    elements.restoreZone.classList.add('drag-over');
+  });
+
+  elements.restoreZone.addEventListener('dragleave', () => {
+    elements.restoreZone.classList.remove('drag-over');
+  });
+
+  elements.restoreZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    elements.restoreZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleJSONFile(file);
+  });
+
+    elements.jsonFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleJSONFile(file);
+    });
+  } catch (err) {
+    console.error('Initialization error:', err);
+    showToast('Error initializing app', 'error');
+  }
+});
+</script>
+
+</body>
+</html>

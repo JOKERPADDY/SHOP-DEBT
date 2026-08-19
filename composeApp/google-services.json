@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "703586336086",
+    "project_id": "debt-management-533b3",
+    "storage_bucket": "debt-management-533b3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703586336086:android:10a3e8d7732eafe1acaaf7",
+        "android_client_info": {
+          "package_name": "com.managementshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDo0aQ8W9QlqAyJbYV5Zve07S2FThduhs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

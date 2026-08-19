@@ -1,0 +1,13 @@
+.gradle/
+build/
+**/build/
+local.properties
+.idea/workspace.xml
+.idea/shelf/
+.idea/libraries/
+.idea/modules.xml
+*.iml
+.kotlin/
+.vscode/
+.artifacts/
+.DS_Store
