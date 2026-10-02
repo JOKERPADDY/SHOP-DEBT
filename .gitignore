@@ -11,3 +11,9 @@ local.properties
 .vscode/
 .artifacts/
 .DS_Store
+
+.android/
+.gradle_home/
+.home/
+*.log
+*.hprof

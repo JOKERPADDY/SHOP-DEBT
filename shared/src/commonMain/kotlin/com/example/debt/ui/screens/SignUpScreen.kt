@@ -8,19 +8,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.debt.ui.theme.AccentColor
-import com.example.debt.ui.theme.TextPrimary
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    onSignUpClick: () -> Unit,
-    onLinkDeviceClick: () -> Unit
+fun SignUpScreen(
+    onSignUpSuccess: () -> Unit,
+    onBackToLogin: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -29,7 +28,7 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("THAWNE SHOP", style = MaterialTheme.typography.h4, color = AccentColor)
+        Text("Create Account", style = MaterialTheme.typography.h4, color = AccentColor)
         Spacer(modifier = Modifier.height(32.dp))
         
         OutlinedTextField(
@@ -47,6 +46,15 @@ fun LoginScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
         
         error?.let {
             Text(it, color = MaterialTheme.colors.error, modifier = Modifier.padding(top = 8.dp))
@@ -56,10 +64,18 @@ fun LoginScreen(
         
         Button(
             onClick = {
+                if (password != confirmPassword) {
+                    error = "Passwords do not match"
+                    return@Button
+                }
+                if (password.length < 6) {
+                    error = "Password should be at least 6 characters"
+                    return@Button
+                }
                 scope.launch {
                     try {
-                        Firebase.auth.signInWithEmailAndPassword(email, password)
-                        onLoginSuccess()
+                        Firebase.auth.createUserWithEmailAndPassword(email, password)
+                        onSignUpSuccess()
                     } catch (e: Exception) {
                         error = e.message
                     }
@@ -67,20 +83,11 @@ fun LoginScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Login")
+            Text("Sign Up")
         }
 
-        TextButton(onClick = onSignUpClick) {
-            Text("Don't have an account? Sign Up")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = onLinkDeviceClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Link to a Shop", color = TextPrimary)
+        TextButton(onClick = onBackToLogin) {
+            Text("Already have an account? Login")
         }
     }
 }

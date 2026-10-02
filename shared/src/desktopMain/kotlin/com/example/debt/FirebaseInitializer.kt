@@ -6,6 +6,7 @@ import dev.gitlive.firebase.initialize
 
 actual fun initializeFirebase(context: Any?) {
     try {
+        // Correct initialization for Desktop (Multiplatform)
         Firebase.initialize(
             options = FirebaseOptions(
                 apiKey = "AIzaSyCDo0aQ8W9QlqAyJbYV5Zve07S2FThduhs",
@@ -15,7 +16,6 @@ actual fun initializeFirebase(context: Any?) {
             )
         )
     } catch (e: Exception) {
-        // Already initialized or failed
-        println("Firebase Desktop Init: ${e.message}")
+        println("Firebase Desktop Init Error: ${e.message}")
     }
 }

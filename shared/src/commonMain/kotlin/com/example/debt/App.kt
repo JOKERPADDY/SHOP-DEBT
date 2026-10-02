@@ -13,28 +13,67 @@ import com.example.debt.ui.screens.*
 import com.example.debt.ui.theme.DebtTheme
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
+import com.example.debt.repository.LinkingService
 
 @Composable
 fun App() {
     DebtTheme {
         var user by remember { mutableStateOf(Firebase.auth.currentUser) }
+        var linkedShopId by remember { mutableStateOf(LinkingService.getLinkedShopId()) }
+        var authMode by remember { mutableStateOf("login") }
+        val scope = rememberCoroutineScope()
         
         LaunchedEffect(Unit) {
-            Firebase.auth.authStateChanged.collect {
-                user = it
+            try {
+                Firebase.auth.authStateChanged.catch { e ->
+                    println("Error in authStateChanged: ${e.message}")
+                }.collect {
+                    user = it
+                }
+            } catch (e: Exception) {
+                println("Error starting authStateChanged listener: ${e.message}")
             }
         }
 
-        if (user == null) {
-            LoginScreen(onLoginSuccess = { user = Firebase.auth.currentUser })
+        if (user == null && linkedShopId == null) {
+            when (authMode) {
+                "signup" -> SignUpScreen(
+                    onSignUpSuccess = { 
+                        user = Firebase.auth.currentUser
+                        authMode = "login" 
+                    },
+                    onBackToLogin = { authMode = "login" }
+                )
+                "link" -> LinkDeviceScreen(
+                    onLinkSuccess = { 
+                        linkedShopId = LinkingService.getLinkedShopId()
+                    },
+                    onBack = { authMode = "login" }
+                )
+                else -> LoginScreen(
+                    onLoginSuccess = { user = Firebase.auth.currentUser },
+                    onSignUpClick = { authMode = "signup" },
+                    onLinkDeviceClick = { authMode = "link" }
+                )
+            }
         } else {
-            NavigationHost()
+            NavigationHost(onLogout = {
+                scope.launch {
+                    LinkingService.unlink()
+                    Firebase.auth.signOut()
+                    user = null
+                    linkedShopId = null
+                    authMode = "login"
+                }
+            })
         }
     }
 }
 
 @Composable
-fun NavigationHost() {
+fun NavigationHost(onLogout: () -> Unit) {
     val navController = rememberNavController()
     
     BoxWithConstraints {
@@ -48,7 +87,9 @@ fun NavigationHost() {
                 Box(modifier = Modifier.weight(1f)) {
                     DashboardScreen(
                         onAddDebt = { navController.navigate("addDebt") },
-                        onDebtClick = { selectedDebtId = it }
+                        onDebtClick = { selectedDebtId = it },
+                        onManageSharing = { navController.navigate("sharing") },
+                        onViewAuditLog = { navController.navigate("auditLog") }
                     )
                 }
                 
@@ -56,7 +97,11 @@ fun NavigationHost() {
                     Box(modifier = Modifier.width(400.dp).fillMaxHeight()) {
                         DebtDetailScreen(
                             debtId = selectedDebtId!!,
-                            onBack = { selectedDebtId = null }
+                            onBack = { selectedDebtId = null },
+                            onEdit = { id -> 
+                                selectedDebtId = null
+                                navController.navigate("editDebt/$id") 
+                            }
                         )
                     }
                 }
@@ -68,6 +113,22 @@ fun NavigationHost() {
                 composable("addDebt") {
                     AddDebtScreen(onBack = { navController.popBackStack() })
                 }
+                composable("sharing") {
+                    ShopSettingsScreen(
+                        onBack = { navController.popBackStack() },
+                        onLogout = onLogout
+                    )
+                }
+                composable("auditLog") {
+                    AuditLogScreen(onBack = { navController.popBackStack() })
+                }
+                composable(
+                    "editDebt/{debtId}",
+                    arguments = listOf(navArgument("debtId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("debtId")
+                    AddDebtScreen(debtId = id, onBack = { navController.popBackStack() })
+                }
             }
         } else {
             // Standard mobile navigation
@@ -75,11 +136,29 @@ fun NavigationHost() {
                 composable("dashboard") {
                     DashboardScreen(
                         onAddDebt = { navController.navigate("addDebt") },
-                        onDebtClick = { navController.navigate("detail/$it") }
+                        onDebtClick = { navController.navigate("detail/$it") },
+                        onManageSharing = { navController.navigate("sharing") },
+                        onViewAuditLog = { navController.navigate("auditLog") }
                     )
                 }
                 composable("addDebt") {
                     AddDebtScreen(onBack = { navController.popBackStack() })
+                }
+                composable("sharing") {
+                    ShopSettingsScreen(
+                        onBack = { navController.popBackStack() },
+                        onLogout = onLogout
+                    )
+                }
+                composable("auditLog") {
+                    AuditLogScreen(onBack = { navController.popBackStack() })
+                }
+                composable(
+                    "editDebt/{debtId}",
+                    arguments = listOf(navArgument("debtId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("debtId")
+                    AddDebtScreen(debtId = id, onBack = { navController.popBackStack() })
                 }
                 composable(
                     "detail/{debtId}",
@@ -88,7 +167,8 @@ fun NavigationHost() {
                     val debtId = backStackEntry.arguments?.getString("debtId") ?: return@composable
                     DebtDetailScreen(
                         debtId = debtId,
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onEdit = { id -> navController.navigate("editDebt/$id") }
                     )
                 }
             }

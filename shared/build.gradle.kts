@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    // alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlinx.serialization)
@@ -9,7 +9,6 @@ plugins {
 kotlin {
     jvmToolchain(17)
     
-    /*
     androidTarget {
         compilations.all {
             kotlinOptions {
@@ -17,7 +16,6 @@ kotlin {
             }
         }
     }
-    */
     
     jvm("desktop")
     
@@ -38,13 +36,11 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.compose.navigation)
         }
-        /*
         androidMain.dependencies {
             implementation(libs.androidx.appcompat)
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
         }
-        */
         val desktopMain by getting {
             dependencies {
                 implementation(libs.kotlinx.coroutines.swing)
@@ -54,7 +50,6 @@ kotlin {
     }
 }
 
-/*
 android {
     namespace = "com.example.debt"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -67,4 +62,3 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
-*/

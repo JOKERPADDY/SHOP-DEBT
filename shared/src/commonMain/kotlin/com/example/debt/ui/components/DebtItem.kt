@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +25,7 @@ import kotlinx.datetime.toLocalDateTime
 fun DebtItem(
     debt: Debt,
     onClick: () -> Unit,
+    onSendInvoice: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -63,12 +66,22 @@ fun DebtItem(
             }
             
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "KES ${remaining.toInt()}",
-                    style = MaterialTheme.typography.subtitle1,
-                    fontWeight = FontWeight.Bold,
-                    color = if (status == DebtStatus.OVERDUE) RedColor else TextPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onSendInvoice) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send Invoice",
+                            tint = AccentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "KES ${remaining.toInt()}",
+                        style = MaterialTheme.typography.subtitle1,
+                        fontWeight = FontWeight.Bold,
+                        color = if (status == DebtStatus.OVERDUE) RedColor else TextPrimary
+                    )
+                }
                 Surface(
                     color = statusColor.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(16.dp)

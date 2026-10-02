@@ -15,5 +15,6 @@ data class Debt(
     val payments: List<Payment> = emptyList(),
     val dateTaken: LocalDate,
     val dueDate: LocalDate,
+    val notes: String? = "",
     val createdAt: Instant
 )

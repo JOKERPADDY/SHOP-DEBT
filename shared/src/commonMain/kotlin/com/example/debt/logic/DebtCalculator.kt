@@ -16,6 +16,10 @@ object DebtCalculator {
         return debt.totalAmount - getDebtPaid(debt)
     }
 
+    fun getDebtTotalWithInterest(debt: Debt, today: LocalDate): Double {
+        return getDebtRemaining(debt) + calculateLatePaymentInterest(debt, today)
+    }
+
     fun isDebtOverdue(debt: Debt, today: LocalDate): Boolean {
         val remaining = getDebtRemaining(debt)
         return remaining > 0 && debt.dueDate < today

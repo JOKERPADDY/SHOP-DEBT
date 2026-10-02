@@ -66,13 +66,25 @@ class DesktopPlatformActions : PlatformActions {
     }
 
     override fun exportToCsv(debts: List<Debt>) {
-        val file = selectFile("Export CSV", FileDialog.SAVE, "debts.csv") ?: return
+        val file = selectFile("Export CSV", FileDialog.SAVE, "debts_export.csv") ?: return
         
         try {
             file.bufferedWriter().use { out ->
-                out.write("Customer Name,National ID,Phone Number,Product,Total Amount,Paid Amount,Date Taken,Due Date\n")
+                // Header
+                out.write("Name,ID Number,Phone,Product,Amount,Date Taken,Due Date,Notes,Created At\n")
                 debts.forEach { d ->
-                    out.write("${d.customerName},${d.customerID},${d.phoneNumber},${d.product},${d.totalAmount},${DebtCalculator.getDebtPaid(d)},${d.dateTaken},${d.dueDate}\n")
+                    val row = listOf(
+                        d.customerName,
+                        d.customerID,
+                        d.phoneNumber,
+                        d.product,
+                        d.totalAmount.toString(),
+                        d.dateTaken.toString(),
+                        d.dueDate.toString(),
+                        d.notes ?: "",
+                        d.createdAt.toString()
+                    ).joinToString(",") { "\"${it.replace("\"", "\"\"")}\"" }
+                    out.write("$row\n")
                 }
             }
             Desktop.getDesktop().open(file.parentFile)
@@ -86,19 +98,65 @@ class DesktopPlatformActions : PlatformActions {
         
         try {
             val imported = mutableListOf<Debt>()
-            file.bufferedReader().useLines { lines ->
-                lines.drop(1).forEach { line ->
-                    val parts = line.split(",")
-                    if (parts.size >= 8) {
-                        // Very basic parsing, would need more robust handling for production
-                        // debt = Debt(...)
+            file.bufferedReader().use { reader ->
+                val header = reader.readLine() // Skip header
+                var line: String? = reader.readLine()
+                while (line != null) {
+                    val parts = parseCsvLine(line)
+                    if (parts.size >= 7) {
+                        try {
+                            val debt = Debt(
+                                id = Clock.System.now().toEpochMilliseconds().toString() + (0..1000).random().toString(),
+                                customerName = parts[0],
+                                customerID = parts[1],
+                                phoneNumber = parts[2],
+                                product = parts[3],
+                                totalAmount = parts[4].toDoubleOrNull() ?: 0.0,
+                                dateTaken = kotlinx.datetime.LocalDate.parse(parts[5]),
+                                dueDate = kotlinx.datetime.LocalDate.parse(parts[6]),
+                                notes = parts.getOrNull(7) ?: "",
+                                createdAt = parts.getOrNull(8)?.let { kotlinx.datetime.Instant.parse(it) } ?: Clock.System.now()
+                            )
+                            imported.add(debt)
+                        } catch (e: Exception) {
+                            println("Error parsing line: $line - ${e.message}")
+                        }
                     }
+                    line = reader.readLine()
                 }
             }
-            onImported(imported)
+            if (imported.isNotEmpty()) {
+                onImported(imported)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            if (c == '\"') {
+                if (inQuotes && i + 1 < line.length && line[i + 1] == '\"') {
+                    current.append('\"')
+                    i++
+                } else {
+                    inQuotes = !inQuotes
+                }
+            } else if (c == ',' && !inQuotes) {
+                result.add(current.toString())
+                current = StringBuilder()
+            } else {
+                current.append(c)
+            }
+            i++
+        }
+        result.add(current.toString())
+        return result
     }
 
     private fun selectFile(title: String, mode: Int, defaultFile: String): File? {
